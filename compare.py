@@ -6,10 +6,12 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from models.models import DnCNN, DnCNN_CA
+from models.DnCNN import DnCNN
+from models.DnCNN_CA import DnCNN_CA
 from utils import calculate_psnr
+from SIDD_Dataset import SIDD_Dataset
 
-def load_model(model_path, model_type='standard', device='cuda'):
+def load_model(model_type='standard', device='cuda'):
     """
     체크포인트에서 모델 불러오기
     
@@ -26,9 +28,12 @@ def load_model(model_path, model_type='standard', device='cuda'):
     else:
         model = DnCNN(in_channels=6, out_channels=3)
     
+    model_path = f'./checkpoints/final_dncnn_model{"_ca" if model_type == "ca" else ""}.pth'
+
     model.load_state_dict(torch.load(model_path))
     model = model.to(device)
     model.eval()
+    print(f"{model_path} 모델 불러오기 완료")
     
     return model
 
@@ -62,7 +67,7 @@ def evaluate_model(model, val_loader, device='cuda'):
     avg_psnr = total_psnr / count
     return avg_psnr
 
-def visualize_results(models, model_names, val_loader, device='cuda', num_samples=3):
+def visualize_results(models, model_names, val_loader, device='cuda', num_samples=2):
     """
     여러 모델의 결과 시각화 및 비교
     
@@ -116,7 +121,7 @@ def visualize_results(models, model_names, val_loader, device='cuda', num_sample
     plt.savefig('./checkpoints/model_comparison.png', dpi=300)
     plt.show()
 
-def compare_models(model_paths, model_types, model_names, val_loader, device='cuda'):
+def compare_models(model_types, model_names, val_loader, device='cuda'):
     """
     여러 모델의 성능 비교
     
@@ -134,14 +139,14 @@ def compare_models(model_paths, model_types, model_names, val_loader, device='cu
     psnrs = []
     
     # 모델 로드 및 평가
-    for path, type_name, name in zip(model_paths, model_types, model_names):
-        print(f"{name} 모델 평가 중...")
-        model = load_model(path, model_type=type_name, device=device)
+    for type_name in model_types:
+        print(f"DnCNN{"_ca" if type_name == "ca" else ""} 모델 평가 중...")
+        model = load_model(model_type=type_name, device=device)
         models.append(model)
         
         psnr = evaluate_model(model, val_loader, device)
         psnrs.append(psnr)
-        print(f"{name} 평균 PSNR: {psnr:.2f}dB")
+        print(f"DnCNN{"_ca" if type_name == "ca" else ""} 평균 PSNR: {psnr:.2f}dB")
     
     # PSNR 비교 그래프
     plt.figure(figsize=(10, 6))
@@ -159,7 +164,7 @@ def compare_models(model_paths, model_types, model_names, val_loader, device='cu
     
     return models, psnrs
 
-def run_evaluation(dataset, img_size=128, batch_size=4):
+def run_evaluation(img_size=128, batch_size=4):
     """
     모델 평가 실행 함수
     
@@ -173,6 +178,14 @@ def run_evaluation(dataset, img_size=128, batch_size=4):
     print(f"사용 중인 디바이스: {device}")
     
     # 학습/검증 분할
+    data_path = 'data'
+    noisy_data = np.load(f'{data_path}/noisy_img_array.npy', mmap_mode='r')
+    gt_data = np.load(f'{data_path}/gt_img_array.npy', mmap_mode='r')
+    noisy_data = noisy_data.astype(np.float32) / 255.0
+    gt_data = gt_data.astype(np.float32) / 255.0
+
+    dataset = SIDD_Dataset(noisy_data, gt_data, img_size=img_size)
+
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     _, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
@@ -181,17 +194,13 @@ def run_evaluation(dataset, img_size=128, batch_size=4):
     val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
     
     # 모델 경로 및 정보 설정
-    model_paths = [
-        './checkpoints/final_dncnn_model.pth',
-        './checkpoints/final_dncnn_model_ca.pth'
-    ]
     model_types = ['standard', 'ca']
     model_names = ['DnCNN', 'DnCNN-CA']
     
     # 모델 평가 및 비교
-    models, psnrs = compare_models(model_paths, model_types, model_names, val_loader, device)
+    models, psnrs = compare_models(model_types, model_names, val_loader, device)
     
     # 결과 시각화
-    visualize_results(models, model_names, val_loader, device, num_samples=3)
+    visualize_results(models, model_names, val_loader, device, num_samples=2)
     
-    return models, psnrs
+    # return psnrs
