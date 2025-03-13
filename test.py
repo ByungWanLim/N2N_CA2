@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from models import DnCNN, DnCNN_CA
+from models.models import DnCNN, DnCNN_CA
 from utils import calculate_psnr
 
 def load_model(model_path, model_type='standard', device='cuda'):
