@@ -26,6 +26,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, num_epochs, dev
     # 학습 기록
     train_losses = []
     val_losses = []
+    patient = 0
     
     for epoch in range(num_epochs):
         # 학습 모드
@@ -103,6 +104,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, num_epochs, dev
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
             print(f"모델 저장됨 (Val Loss: {val_loss:.4f})")
+            patient = 0
         else:
             patient += 1
         

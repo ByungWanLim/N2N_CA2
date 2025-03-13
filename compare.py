@@ -61,6 +61,9 @@ def evaluate_model(model, val_loader, device='cuda'):
             # PSNR 계산
             for i in range(outputs.size(0)):
                 psnr = calculate_psnr(outputs[i], targets[i])
+                # GPU 텐서인 경우 CPU로 변환하고 스칼라 값 추출
+                if isinstance(psnr, torch.Tensor):
+                    psnr = psnr.cpu().item()
                 total_psnr += psnr
                 count += 1
     
@@ -145,6 +148,8 @@ def compare_models(model_types, model_names, val_loader, device='cuda'):
         models.append(model)
         
         psnr = evaluate_model(model, val_loader, device)
+        if isinstance(psnr, torch.Tensor):
+            psnr = psnr.cpu().item()
         psnrs.append(psnr)
         print(f"DnCNN{"_ca" if type_name == "ca" else ""} 평균 PSNR: {psnr:.2f}dB")
     

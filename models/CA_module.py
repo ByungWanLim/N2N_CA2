@@ -22,7 +22,8 @@ class SpatialCrossAttention(nn.Module):
         self.v_proj = nn.Conv2d(feature_half, feature_half, kernel_size=1)
         
         # 출력 조정을 위한 레이어
-        self.out_proj = nn.Conv2d(feature_half, features, kernel_size=1)
+        self.input_proj = nn.Conv2d(features, feature_half, kernel_size=1)
+        self.out_proj = nn.Conv2d(features, features, kernel_size=1)
     
     def forward(self, x):
         """
@@ -38,6 +39,8 @@ class SpatialCrossAttention(nn.Module):
         features_half = x.shape[1] // 2
         q = x[:, :features_half, ...]  # (B, features/2, H, W)
         k = x[:, features_half:, ...]  # (B, features/2, H, W)
+        
+        x = self.input_proj(x)  # (B, features, H, W)
         
         # Q, K, V 변환
         q = self.q_proj(q)  # (B, features/2, H, W)
@@ -57,6 +60,8 @@ class SpatialCrossAttention(nn.Module):
         # 어텐션 적용
         out = torch.matmul(attn, v)  # (B, H*W, C)
         out = out.permute(0, 2, 1).view(batch_size, C, height, width)  # (B, C, H, W)
+        
+        out = torch.cat((x, out), dim=1)  # (B, features, H, W)
         
         # 출력 조정
         out = self.out_proj(out)  # (B, features, H, W)
