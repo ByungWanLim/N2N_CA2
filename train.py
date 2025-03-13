@@ -7,7 +7,7 @@ from utils import visualize_input_target_output, calculate_psnr
 
 
 # 학습 함수
-def train(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, ca=None):
+def train(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, early_stop, ca=None):
     """
     DnCNN 모델 학습 함수
     
@@ -103,6 +103,14 @@ def train(model, train_loader, val_loader, criterion, optimizer, num_epochs, dev
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
             print(f"모델 저장됨 (Val Loss: {val_loss:.4f})")
+        else:
+            patient += 1
+        
+        # 조기 종료
+        if early_stop is not None:
+            if patient >= early_stop:
+                print(f"조기 종료 ({early_stop} 에폭 동안 검증 손실이 감소하지 않음)")
+                break
         
         # 중간 결과 시각화 (5에폭마다)
         if (epoch + 1) % 25 == 0 or epoch == 0:
